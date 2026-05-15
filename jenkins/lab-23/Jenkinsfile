@@ -1,0 +1,74 @@
+@Library('jenkins-shared-lib') _
+
+pipeline {
+    agent { label 'jenkins-slave' }
+
+    environment {
+        IMAGE_NAME = "YOUR_DOCKERHUB_USERNAME/ivolve-app"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        APP_DIR = "Jenkins_App"
+        DEPLOYMENT_FILE = "Jenkins_App/k8s/deployment.yaml"
+    }
+
+    stages {
+        stage('RunUnitTest') {
+            steps {
+                runUnitTest(APP_DIR)
+            }
+        }
+
+        stage('BuildApp') {
+            steps {
+                buildApp(APP_DIR)
+            }
+        }
+
+        stage('BuildImage') {
+            steps {
+                buildImage(IMAGE_NAME, IMAGE_TAG, APP_DIR)
+            }
+        }
+
+        stage('ScanImage') {
+            steps {
+                scanImage(IMAGE_NAME, IMAGE_TAG)
+            }
+        }
+
+        stage('PushImage') {
+            steps {
+                pushImage(IMAGE_NAME, IMAGE_TAG, 'dockerhub-creds')
+            }
+        }
+
+        stage('RemoveImageLocally') {
+            steps {
+                removeImageLocally(IMAGE_NAME, IMAGE_TAG)
+            }
+        }
+
+        stage('UpdateManifest') {
+            steps {
+                sh "sed -i 's|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g' ${DEPLOYMENT_FILE}"
+            }
+        }
+
+        stage('DeployOnK8s') {
+            steps {
+                deployOnK8s(DEPLOYMENT_FILE)
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo "SUCCESS"
+        }
+        failure {
+            echo "FAILED"
+        }
+    }
+}

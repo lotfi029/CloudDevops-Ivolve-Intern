@@ -1,0 +1,83 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+        IMAGE_NAME = "${DOCKERHUB_CREDENTIALS_USR}/ivolve-jenkins-app"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        APP_DIR = "Jenkins_App"
+        DEPLOYMENT_FILE = "Jenkins_App/k8s/deployment.yaml"
+    }
+
+    stages {
+        stage('Run Unit Test') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Build App') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh 'mvn package -DskipTests'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage('Push Image to DockerHub') {
+            steps {
+                sh """
+                    echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Delete Image Locally') {
+            steps {
+                sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true"
+            }
+        }
+
+        stage('Update deployment.yaml') {
+            steps {
+                sh """
+                    sed -i 's|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g' ${DEPLOYMENT_FILE}
+                    git config user.email "jenkins@ci.local"
+                    git config user.name "Jenkins"
+                    git add ${DEPLOYMENT_FILE}
+                    git commit -m "Update image to ${IMAGE_TAG}" || echo "No changes to commit"
+                """
+            }
+        }
+
+        stage('Deploy to K8s') {
+            steps {
+                sh "kubectl apply -f ${DEPLOYMENT_FILE}"
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline finished - cleaning workspace"
+            cleanWs()
+        }
+        success {
+            echo "Deployment succeeded. Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+        }
+        failure {
+            echo "Pipeline failed. Check the Jenkins logs."
+        }
+    }
+}
