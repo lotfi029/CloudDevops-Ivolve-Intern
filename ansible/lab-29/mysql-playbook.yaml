@@ -1,0 +1,38 @@
+---
+- name: Configure MySQL on dynamically discovered hosts
+  hosts: tag_db
+  become: yes
+  vars_files:
+    - ../lab-28/vault/mysql_secrets.yaml
+
+  tasks:
+    - name: Install MySQL server
+      apt:
+        name: mysql-server
+        state: present
+        update_cache: yes
+
+    - name: Start and enable MySQL
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Install PyMySQL for Ansible MySQL modules
+      apt:
+        name: python3-pymysql
+        state: present
+
+    - name: Create iVolve database
+      mysql_db:
+        name: iVolve
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create DB user with full privileges on iVolve
+      mysql_user:
+        name: ivolve_user
+        password: "{{ db_password }}"
+        priv: "iVolve.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock

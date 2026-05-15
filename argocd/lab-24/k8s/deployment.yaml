@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ivolve-gitops-app
+  namespace: ivolve
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ivolve-gitops-app
+  template:
+    metadata:
+      labels:
+        app: ivolve-gitops-app
+    spec:
+      containers:
+        - name: ivolve-gitops-app
+          image: YOUR_DOCKERHUB_USERNAME/ivolve-gitops-app:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ivolve-gitops-app-service
+  namespace: ivolve
+spec:
+  type: ClusterIP
+  selector:
+    app: ivolve-gitops-app
+  ports:
+    - port: 8080
+      targetPort: 8080
