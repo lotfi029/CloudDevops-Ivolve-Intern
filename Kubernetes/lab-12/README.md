@@ -1,16 +1,40 @@
-# ConfigMap for non-sensitive MySQL config
+# Lab 12: Managing Configuration and Sensitive Data
 
-kubectl apply -f configmap
+This lab separates non-sensitive database settings into a ConfigMap and sensitive credentials into a Kubernetes Secret.
 
-# Secret for sensitive credentials (values must be base64 encoded)
+## Repository Contents
 
-# echo -n "apppassword" | base64 → YXBwcGFzc3dvcmQ=
+- `configmap.yml`: Defines `mysql-config` in the `ivolve` namespace.
+- `secret.yml`: Defines `mysql-secret` in the `ivolve` namespace.
 
-# echo -n "rootpassword" | base64 → cm9vdHBhc3N3b3Jk
+## ConfigMap Values
 
-kubectl apply -f secret
+- `DB_HOST`: `mysql-0.mysql-headless.ivolve.svc.cluster.local`
+- `DB_USER`: `appuser`
 
-# Verify
+## Secret Values
 
+The Secret stores base64-encoded values:
+
+- `DB_PASSWORD`: `apppassword`
+- `MYSQL_ROOT_PASSWORD`: `rootpassword`
+
+## Steps
+
+```bash
+kubectl apply -f configmap.yml
+kubectl apply -f secret.yml
+```
+
+## Verification
+
+```bash
 kubectl get configmap mysql-config -n ivolve -o yaml
 kubectl get secret mysql-secret -n ivolve -o yaml
+```
+
+To decode a secret value:
+
+```bash
+kubectl get secret mysql-secret -n ivolve -o jsonpath='{.data.DB_PASSWORD}' | base64 --decode
+```

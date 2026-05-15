@@ -1,36 +1,59 @@
-# 1. Create named volume for Nginx logs
+# Lab 7: Docker Volume and Bind Mount with Nginx
+
+This lab runs Nginx with two storage types: a named volume for logs and a bind mount for website content. The bind mount allows live HTML updates from the host without rebuilding or restarting the container.
+
+## What This Lab Creates
+
+- Named volume: `nginx_logs`
+- Host bind mount directory: `~/nginx-bind/html`
+- Nginx container: `nginx-test`
+
+## Steps
+
+```bash
 docker volume create nginx_logs
 
-# Verify it exists at default path
-ls /var/lib/docker/volumes/nginx_logs/
-
-# 2. Create directory for bind mount
 mkdir -p ~/nginx-bind/html
-
-# 3. Create custom HTML file
 echo "<h1>Hello from Bind Mount</h1>" > ~/nginx-bind/html/index.html
 
-# 4. Run Nginx with volume + bind mount
 docker run -d --name nginx-test \
   -p 80:80 \
   -v nginx_logs:/var/log/nginx \
   -v ~/nginx-bind/html:/usr/share/nginx/html \
   nginx
+```
 
-# 5. Verify Nginx is serving your custom page
+## Verification
+
+```bash
 curl http://localhost
-# Expected: <h1>Hello from Bind Mount</h1>
+```
 
-# 6. Modify the HTML on the host (live update — no container restart needed)
+Expected output:
+
+```html
+<h1>Hello from Bind Mount</h1>
+```
+
+Update the host file and verify the change appears immediately:
+
+```bash
 echo "<h1>Updated from Bind Mount!</h1>" > ~/nginx-bind/html/index.html
 curl http://localhost
-# Expected: <h1>Updated from Bind Mount!</h1>
+```
 
-# 7. Verify logs are in the volume
+Check logs stored in the named volume:
+
+```bash
 sudo ls /var/lib/docker/volumes/nginx_logs/_data/
-# Should see: access.log  error.log
+```
 
-# 8. Delete the volume (stop container first)
+Expected log files include `access.log` and `error.log`.
+
+## Cleanup
+
+```bash
 docker stop nginx-test
 docker rm nginx-test
 docker volume rm nginx_logs
+```
